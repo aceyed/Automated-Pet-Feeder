@@ -3,7 +3,7 @@ import time
 import smbus
 # Set up GPIO mode
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(25, GPIO.OUT)
+GPIO.setup(26, GPIO.OUT)
 GPIO.setup(22, GPIO.OUT)
 
 # Set up GPIO pins
@@ -35,13 +35,13 @@ for row in rows:
 
 # Function to turn on led, checks if led is off first
 def turn_on_led():
-    if led_pin.GetValue() == GPIO.PWM(25, 0):
-        led_pin.ChangeDutyCycle(True)
+    if led_pin.GetDutyCycle() == 0:
+        led_pin.ChangeDutyCycle(100)
 
 # Function to turn off led, checks if led is on first
 def turn_off_led():
-    if led_pin.GetValue() == GPIO.PWM(26, 100):
-        led_pin.ChangeDutyCycle(False)
+    if led_pin.GetDutyCycle() == 100:
+        led_pin.ChangeDutyCycle(0)
 
 # Makes the led blink in 0.5 second intervals throughout the open_time, preserves
 # initial led state after blinking is done
