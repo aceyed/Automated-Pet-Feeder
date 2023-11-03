@@ -35,13 +35,11 @@ for row in rows:
 
 # Function to turn on led, checks if led is off first
 def turn_on_led():
-    if led_pin.GetDutyCycle() == 0:
-        led_pin.ChangeDutyCycle(100)
+    led_pin.ChangeDutyCycle(100)
 
 # Function to turn off led, checks if led is on first
 def turn_off_led():
-    if led_pin.GetDutyCycle() == 100:
-        led_pin.ChangeDutyCycle(0)
+    led_pin.ChangeDutyCycle(0)
 
 # Makes the led blink in 0.5 second intervals throughout the open_time, preserves
 # initial led state after blinking is done
@@ -170,7 +168,7 @@ def main():
                 if entered_password.lower() == 'lock':
                     locked = True
                     print("Locked")
-                    turn_off_led()  # Indicate locked state
+                    turn_on_led()  # Indicate locked state
                     active_mode = "N/A"  # Reset active mode when locked
                 else:
                     print("Invalid input")
