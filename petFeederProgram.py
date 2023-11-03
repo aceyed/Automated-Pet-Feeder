@@ -138,31 +138,30 @@ def main():
     print("Pet Food Dispenser Program")
     password = "0000"  # Default password
     locked = True  # Initial state is locked
+    active_mode = "N/A"  # Initialize the active mode as "N/A"
 
     while True:
-        print("Home Screen")
+        print("Menu")
         print(f"Locked: {'Yes' if locked else 'No'}")
+        print(f"Active Mode: {active_mode}")
         if not locked:
             # Implement time remaining for the next feeding in auto-timed mode
             print("Time Remaining: X minutes")  # Replace with actual time
 
-        print("1. Enter Menu")
-        print("2. Lock/Unlock")
+        print("1. Lock/Unlock")
+        print("2. Manual Mode")
+        print("3. Auto-Timed Mode")
+
         choice = input("Enter your choice: ")
 
         if choice == '1':
-            # Enter the menu (go to menu function)
-            menu(password, locked)
-        elif choice == '2':
             if locked:
                 # Unlock the dispenser
                 entered_password = get_keypad_input()
-                print(entered_password)
                 if entered_password == password:
                     locked = False
                     print("Unlocked")
                     turn_on_led()  # Indicate unlocked state
-                    print("led test")
                 else:
                     print("Incorrect password")
             else:
@@ -172,83 +171,27 @@ def main():
                     locked = True
                     print("Locked")
                     turn_off_led()  # Indicate locked state
+                    active_mode = "N/A"  # Reset active mode when locked
                 else:
                     print("Invalid input")
-        else:
-            print("Invalid choice")
-
-def menu(password, locked):
-    while True:
-        print("Menu")
-        print("1. Manual Mode")
-        print("2. Auto-Timed Mode")
-        print("3. Back to Home")
-        menu_choice = input("Enter your choice: ")
-
-        if menu_choice == '1':
-            # Implement manual mode settings and functionality
+        elif choice == '2':
             if not locked:
-                while True:
-                    
-                    print("Manual Mode Settings")
-                    print("1. Set Open Time")
-                    print("2. Set Max Lever Activations")
-                    print("3. Back to Menu")
-                    manual_choice = input("Enter your choice: ")
-                    
-                    if manual_choice == '1':
-                        # Allow user to set open time for servo motor
-                        open_time = float(input("Enter open time for the servo motor (in seconds): "))
-                        open_feeder_door(open_time)  # Indicate feeding
-                    elif manual_choice == '2':
-                        # Allow user to set max lever activations per hour
-                        max_activations = int(input("Enter max lever activations per hour: "))
-                        open_feeder_door()  # Indicate feeding
-                        manual_mode(infrared_triggered, open_time)
-                    elif manual_choice == '3':
-                        break  # Go back to the Menu
-                    else:
-                        print("Invalid choice")
-                    
-
-            else:
-                print("The dispenser is locked. Please unlock to access settings.")
-
-        elif menu_choice == '2':
-            
-            # Implement auto-timed mode settings and functionality
+                # Enter manual mode
+                open_time = float(input("Enter open time for the servo motor (in seconds): "))
+                active_mode = "Manual Mode"
+                open_feeder_door(open_time)
+        elif choice == '3':
             if not locked:
-                auto_timed_mode(interval)
-                while True:
-                    print("Auto-Timed Mode Settings")
-                    print("1. Set Activation Interval")
-                    print("2. Set Open Time")
-                    print("3. Back to Menu")
-                    auto_choice = input("Enter your choice: ")
-
-                    if auto_choice == '1':
-                        # Allow user to configure activation intervals
-                        interval = int(input("Enter activation interval (in minutes): "))
-                        open_feeder_door()  # Indicate feeding
-                    elif auto_choice == '2':
-                        # Allow user to set open time for the servo motor
-                        open_time = float(input("Enter open time for the servo motor (in seconds): "))
-                        open_feeder_door(open_time)  # Indicate feeding
-                        infrared_triggered = read_infrared_sensor()  # Check infrared sensor
-                    elif auto_choice == '3':
-                        break  # Go back to the Menu
-                    else:
-                        print("Invalid choice")
-                    
-
-            else:
-                print("The dispenser is locked. Please unlock to access settings.")
-
-        elif menu_choice == '3':
-            return  # Return to the home screen
+                # Enter auto-timed mode
+                interval = int(input("Enter activation interval (in minutes): "))
+                open_time = float(input("Enter open time for the servo motor (in seconds): "))
+                active_mode = "Auto-Timed Mode"
+                auto_timed_mode(interval, open_time)
         else:
             print("Invalid choice")
 
 if __name__ == "__main__":
     main()
+
+
 
