@@ -161,7 +161,7 @@ def main():
                 if entered_password == password:
                     locked = False
                     print("Unlocked")
-                    turn_on_led()  # Indicate unlocked state
+                    turn_off_led()  # Indicate unlocked state
                 else:
                     print("Incorrect password")
             else:
