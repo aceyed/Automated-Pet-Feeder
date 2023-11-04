@@ -127,27 +127,30 @@ def manual_mode(open_time, locked, active_mode):
             if button_pressed <= 2:
                break
 """
-def manual_mode(open_time, locked, active_mode):
-    button_pressed = False  # Track if the button is pressed
+def manual_mode(open_time, locked):
+    # Use button_pressed to track the button state
+    button_pressed = False
 
-    while active_mode == "Manual Mode":
+    while True:
+        # Read the button state
         current_button_state = read_infrared_sensor()
 
         # Check for a transition from not pressed to pressed
         if current_button_state < 2 and not button_pressed:
             button_pressed = True  # Button is now pressed
-            start_time = time.time()  # Start the timer
 
         if button_pressed:
             # Blink the LED
             open_feeder_door(open_time, locked)
 
-            # Check for a transition from pressed to not pressed or timer expiration
-            if current_button_state >= 2 or (time.time() - start_time) >= open_time:
-                button_pressed = False  # Button is released or timer expired
-                break
-    servo1.ChangeDutyCycle(0)
-    servo1.stop()
+            # Check for a transition from pressed to not pressed
+            if current_button_state >= 2:
+                button_pressed = False  # Button is released
+
+        # Add a small delay to prevent high CPU usage
+        time.sleep(0.1)
+
+
 
 
 start_time = time.time()
@@ -201,13 +204,13 @@ def main():
                     turn_on_led()  # Indicate locked state
                     active_mode = "N/A"  # Reset active mode when locked
                 else:
-                    print("Invalid input")
+                    print("INVALID INPUT")
         elif choice == '2':
             if not locked:
                 # Enter manual mode
                 open_time = float(input("Enter open time for the servo motor (in seconds): "))
                 active_mode = "Manual Mode"
-                manual_mode(open_time, locked, active_mode)
+                manual_mode(open_time, locked)
         elif choice == '3':
             if not locked:
                 # Enter auto-timed mode
@@ -215,8 +218,11 @@ def main():
                 open_time = float(input("Enter open time for the servo motor (in seconds): "))
                 active_mode = "Auto-Timed Mode"
                 auto_timed_mode(interval, open_time, active_mode)
+        elif locked:
+            print("FEEDER LOCKED")
+
         else:
-            print("Invalid choice")
+            print("INVALID CHOICE")
 
 if __name__ == "__main__":
     main()
