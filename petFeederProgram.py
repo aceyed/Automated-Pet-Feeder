@@ -13,12 +13,13 @@ rows = [21, 20, 16, 12]  # Update with your wiring
 
 # Define servo motor GPIO pin
 servo1 = GPIO.PWM(22, 50)
+servo1.start(0)
 
 # Define LED GPIO pin
 led_pin = GPIO.PWM(26, 60)
 
 # Define infrared sensor I2C address
-infrared_sensor_address = 0x48
+address = 0x48
 A2 = 0x42
 
 # Initialize I2C bus
@@ -41,53 +42,6 @@ def turn_on_led():
 def turn_off_led():
     led_pin.ChangeDutyCycle(0)
 
-# Makes the led blink in 0.5 second intervals throughout the open_time, preserves
-# initial led state after blinking is done
-def open_feeder_door(open_time, locked):
-    # Calculate the number of blinks (each blink is 0.5 seconds)
-    num_blinks = int(2 * open_time)
-
-    servo1.start(0)
-    time.sleep(1)
-    # Adjust servo motor to open the door
-    servo1.ChangeDutyCycle(7)
-    time.sleep(0.5)
-
-    for _ in range(num_blinks):
-        led_pin.ChangeDutyCycle(100)  # Turn on the LED
-        time.sleep(0.5)
-        led_pin.ChangeDutyCycle(0)  # Turn off the LED
-        time.sleep(0.5)
-
-    servo1.ChangeDutyCycle(2)
-    time.sleep(0.5)
-    servo1.ChangeDutyCycle(0)
-    servo1.stop()
-    # Restore the LED to its initial state
-    if locked:
-        led_pin.ChangeDutyCycle(100)
-    else:
-        led_pin.ChangeDutyCycle(0)
-
-
-# Function to read value of infrared sensor
-def read_infrared_sensor():
-    bus.write_byte(infrared_sensor_address, A2)  # Use the appropriate channel
-    value = bus.read_byte(infrared_sensor_address)
-    dist = value * 3.3 / 255  # Convert to voltage or distance as needed
-    return dist
-
-# Funciton to open feeder door for a set time, then closes it
-"""
-def open_feeder_door(open_time, locked):
-    blink_led(open_time, locked)  # Indicate feeding
-    servo1.start(0)
-    # Adjust servo motor to open the door
-    servo1.ChangeDutyCycle(12)
-    time.sleep(open_time)
-    servo1.ChangeDutyCycle(0)
-    servo1.stop()
-"""
 
 def get_keypad_input():
     keypad = [
@@ -115,53 +69,103 @@ def get_keypad_input():
 
     return input_keys
 
-"""
-def manual_mode(open_time, locked, active_mode):
-    while active_mode == "Manual Mode":
-        button_pressed = read_infrared_sensor()
-        print(button_pressed)
-        if button_pressed > 2:
-            print(button_pressed)
-            open_feeder_door(open_time, locked)  # Release food
-            print(button_pressed)
-            if button_pressed <= 2:
-               break
-"""
-def manual_mode(open_time, locked):
-    # Use button_pressed to track the button state
-    button_pressed = False
+def manual_mode():
+    threshold_voltage = 1.85  # Sensor and requirements
+    motor_running = False
+    blink_interval = 0.5  # LED will blink every 0.5 seconds
 
+    try:
+        seconds = float(input("Enter the seconds you want the motor to stay open: "))
+        while True:
+            # Read the value from the infrared sensor
+            bus.write_byte(address, A2)
+            value = bus.read_byte(address)
+            voltage = (value * 3.3 / 255)
+            print("AOUT:%1.3f " % voltage)
+
+            if voltage < threshold_voltage and not motor_running:
+                motor_running = True
+                print("Infrared sensor triggered! Rotating the servo motor.")
+
+                # Rotate to 180 degrees position
+                servo1.ChangeDutyCycle(2)
+
+                # Turn on the LED with blinking
+                end_time = time.time() + seconds
+                while time.time() < end_time:
+                    turn_on_led()  # Turn on the LED
+                    time.sleep(blink_interval / 2)  # Wait half the interval
+                    turn_off_led()  # Turn off the LED
+                    time.sleep(blink_interval / 2)  # Wait half the interval
+
+                # Reset servo to initial position
+                servo1.ChangeDutyCycle(7)
+                time.sleep(1)
+                servo1.ChangeDutyCycle(0)  # Stop sending the signal to the motor
+                print("Waiting for sensor to clear...")
+                time.sleep(2)
+
+            elif voltage < threshold_voltage:
+                motor_running = False  # Reset the flag when the sensor is clear
+
+            # Short delay before the next reading
+            time.sleep(0.1)
+
+    except ValueError:
+        # Handle the error if the user does not enter a valid number
+        print("Input error")
+    except KeyboardInterrupt:
+        # Clean up the GPIO on CTRL+C exit
+        print("Exiting manual mode.")
+        turn_off_led()  # Ensure LED is off when exiting
+        servo1.stop()
+        GPIO.cleanup()
+
+
+def hours_to_seconds(hours):
+    return hours * 3600
+
+# Automatic mode function to dispense based on user input
+def autoHelper(interval_seconds, seconds):
+    blink_interval = 0.5  # LED will blink every 0.5 seconds
     while True:
-        # Read the button state
-        current_button_state = read_infrared_sensor()
+        print("Dispensing food automatically.")
+        # Rotate to 180 degrees position
+        servo1.ChangeDutyCycle(12)
+        
+        end_time = time.time() + seconds
+        while time.time() < end_time:
+            turn_on_led()  # Turn on the LED
+            time.sleep(blink_interval / 2)  # Wait half the interval
+            turn_off_led()  # Turn off the LED
+            time.sleep(blink_interval / 2)  # Wait half the interval
+        
+        # Reset the servo to 0 degrees
+        servo1.ChangeDutyCycle(2)
+        time.sleep(1)  # Wait for the servo to return
+        servo1.ChangeDutyCycle(0)  # Stop sending the signal
+        print(f"Next dispense in {interval_seconds/3600:.1f} hours.")
+        
+        # Wait for the specified interval before next dispense
+        time.sleep(interval_seconds)
 
-        # Check for a transition from not pressed to pressed
-        if current_button_state < 2 and not button_pressed:
-            button_pressed = True  # Button is now pressed
+def enterAuto():
+    try:
+        # Ask user for the time interval in hours
+        hours = float(input("Enter the time interval for dispensing in hours: "))
+        interval_seconds = hours_to_seconds(hours)
+        seconds = float(input("Enter the seconds you want the motor to stay open: "))
+        print(f"Automatic mode activated. Dispensing will occur every {hours} hours.")
+        autoHelper(interval_seconds,seconds)
+    except KeyboardInterrupt:
+        # Clean up the GPIO on CTRL+C exit
+        print("Exiting automatic mode.")
+        servo1.stop()
+        GPIO.cleanup()
+    except ValueError:
+        # Handle the error if the user does not enter a valid number
+        print("Please enter a valid number for the time interval.")
 
-        if button_pressed:
-            # Blink the LED
-            open_feeder_door(open_time, locked)
-
-            # Check for a transition from pressed to not pressed
-            if current_button_state >= 2:
-                button_pressed = False  # Button is released
-
-        # Add a small delay to prevent high CPU usage
-        time.sleep(0.1)
-
-
-
-
-start_time = time.time()
-interval = 60
-
-def auto_timed_mode(interval, open_time, locked, active_mode):
-    while active_mode == "Auto-Timed Mode":
-        current_time = time.time()
-        if current_time - start_time >= interval:
-            open_feeder_door(open_time, locked)  # Release food
-            start_time = current_time
 
 def main():
     # Initialize your program here
@@ -208,16 +212,12 @@ def main():
         elif choice == '2':
             if not locked:
                 # Enter manual mode
-                open_time = float(input("Enter open time for the servo motor (in seconds): "))
-                active_mode = "Manual Mode"
-                manual_mode(open_time, locked)
+                manual_mode()
+
         elif choice == '3':
             if not locked:
                 # Enter auto-timed mode
-                interval = int(input("Enter activation interval (in minutes): "))
-                open_time = float(input("Enter open time for the servo motor (in seconds): "))
-                active_mode = "Auto-Timed Mode"
-                auto_timed_mode(interval, open_time, active_mode)
+                enterAuto()
         elif locked:
             print("FEEDER LOCKED")
 
@@ -226,6 +226,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
