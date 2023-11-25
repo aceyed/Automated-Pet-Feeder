@@ -69,10 +69,36 @@ def get_keypad_input():
 
     return input_keys
 
+
+def dim_led(pin, fade_time_seconds):
+
+
+    led_pin.start(100)  # Start with maximum brightness
+
+    # Calculate the time interval for each step
+    step_time = fade_time_seconds / 100  # 100   steps from 100% to 0%
+
+
+    for duty_cycle in range(100, 0, -1):
+        led_pin.ChangeDutyCycle(duty_cycle)
+        time.sleep(step_time)
+"""
+    finally:
+        led_pin.stop()
+        GPIO.cleanup()
+"""
+
 def manual_mode():
     threshold_voltage = 1.85  # Sensor and requirements
     motor_running = False
-    blink_interval = 0.5  # LED will blink every 0.5 seconds
+    zero_degree_pulse = 1.0  # Pulse width in ms for 0 degrees
+    ninety_degree_pulse = 2.0  # Pulse width in ms for 180 degrees
+    frequency = 50  # Frequency in Hz
+    zero_degree_duty = (zero_degree_pulse / (1000 / frequency)) * 100
+    ninety_degree_duty = (ninety_degree_pulse / (1000 / frequency)) * 100
+
+    servo1.ChangeDutyCycle(zero_degree_duty)
+
 
     try:
         seconds = float(input("Enter the seconds you want the motor to stay open: "))
@@ -88,18 +114,13 @@ def manual_mode():
                 print("Infrared sensor triggered! Rotating the servo motor.")
 
                 # Rotate to 180 degrees position
-                servo1.ChangeDutyCycle(2)
+                servo1.ChangeDutyCycle(ninety_degree_duty)
 
                 # Turn on the LED with blinking
-                end_time = time.time() + seconds
-                while time.time() < end_time:
-                    turn_on_led()  # Turn on the LED
-                    time.sleep(blink_interval / 2)  # Wait half the interval
-                    turn_off_led()  # Turn off the LED
-                    time.sleep(blink_interval / 2)  # Wait half the interval
+                dim_led(26, seconds)
 
                 # Reset servo to initial position
-                servo1.ChangeDutyCycle(7)
+                servo1.ChangeDutyCycle(zero_degree_duty)
                 time.sleep(1)
                 servo1.ChangeDutyCycle(0)  # Stop sending the signal to the motor
                 print("Waiting for sensor to clear...")
@@ -125,23 +146,26 @@ def hours_to_seconds(hours):
 
 # Automatic mode function to dispense based on user input
 def autoHelper(interval_seconds, seconds):
-    blink_interval = 0.5  # LED will blink every 0.5 seconds
+    zero_degree_pulse = 1.0  # Pulse width in ms for 0 degrees
+    ninety_degree_pulse = 2.0  # Pulse width in ms for 180 degrees
+    frequency = 50  # Frequency in Hz
+    zero_degree_duty = (zero_degree_pulse / (1000 / frequency)) * 100
+    ninety_degree_duty = (ninety_degree_pulse / (1000 / frequency)) * 100
+
     while True:
         print("Dispensing food automatically.")
         # Rotate to 180 degrees position
-        servo1.ChangeDutyCycle(7)
+        servo1.ChangeDutyCycle(ninety_degree_duty)
         
         end_time = time.time() + seconds
         while time.time() < end_time:
-            turn_on_led()  # Turn on the LED
-            time.sleep(blink_interval / 2)  # Wait half the interval
-            turn_off_led()  # Turn off the LED
-            time.sleep(blink_interval / 2)  # Wait half the interval
+            dim_led(26, seconds)
         
         # Reset the servo to 0 degrees
-        servo1.ChangeDutyCycle(2)
+        servo1.ChangeDutyCycle(zero_degree_duty)
         time.sleep(1)  # Wait for the servo to return
         servo1.ChangeDutyCycle(0)  # Stop sending the signal
+        time.sleep(2)
         print(f"Next dispense in {interval_seconds/3600:.1f} hours.")
         
         # Wait for the specified interval before next dispense
@@ -164,61 +188,66 @@ def enterAuto():
 
 
 def main():
-    # Initialize your program here
-    led_pin.start(100)
-    print("Pet Food Dispenser Program")
-    password = "0000"  # Default password
-    locked = True  # Initial state is locked
-    active_mode = "N/A"  # Initialize the active mode as "N/A"
+    try:
+        # Initialize your program here
+        led_pin.start(100)
+        print("Pet Food Dispenser Program")
+        password = "0000"  # Default password
+        locked = True  # Initial state is locked
+        active_mode = "N/A"  # Initialize the active mode as "N/A"
 
-    while True:
-        print("Menu")
-        print(f"Locked: {'Yes' if locked else 'No'}")
-        print(f"Active Mode: {active_mode}")
-        if not locked:
-            # Implement time remaining for the next feeding in auto-timed mode
-            print("Time Remaining: X minutes")  # Replace with actual time
+        while True:
+            print("Menu")
+            print(f"Locked: {'Yes' if locked else 'No'}")
+            print(f"Active Mode: {active_mode}")
+            if not locked:
+                # Implement time remaining for the next feeding in auto-timed mode
+                print("Time Remaining: X minutes")  # Replace with actual time
 
-        print("1. Lock/Unlock")
-        print("2. Manual Mode")
-        print("3. Auto-Timed Mode")
+            print("1. Lock/Unlock")
+            print("2. Manual Mode")
+            print("3. Auto-Timed Mode")
 
-        choice = input("Enter your choice: ")
+            choice = input("Enter your choice: ")
 
-        if choice == '1':
-            if locked:
-                # Unlock the dispenser
-                entered_password = get_keypad_input()
-                if entered_password == password:
-                    locked = False
-                    print("Unlocked")
-                    turn_off_led()  # Indicate unlocked state
+            if choice == '1':
+                if locked:
+                    # Unlock the dispenser
+                    entered_password = get_keypad_input()
+                    if entered_password == password:
+                        locked = False
+                        print("Unlocked")
+                        turn_off_led()  # Indicate unlocked state
+                    else:
+                        print("Incorrect password")
                 else:
-                    print("Incorrect password")
+                    # Lock the dispenser
+                    entered_password = input("Enter 'lock' to lock: ")
+                    if entered_password.lower() == 'lock':
+                        locked = True
+                        print("Locked")
+                        turn_on_led()  # Indicate locked state
+                        active_mode = "N/A"  # Reset active mode when locked
+                    else:
+                        print("INVALID INPUT")
+            elif choice == '2':
+                if not locked:
+                    # Enter manual mode
+                    manual_mode()
+
+            elif choice == '3':
+                if not locked:
+                    # Enter auto-timed mode
+                    enterAuto()
+            elif locked:
+                print("FEEDER LOCKED")
+
             else:
-                # Lock the dispenser
-                entered_password = input("Enter 'lock' to lock: ")
-                if entered_password.lower() == 'lock':
-                    locked = True
-                    print("Locked")
-                    turn_on_led()  # Indicate locked state
-                    active_mode = "N/A"  # Reset active mode when locked
-                else:
-                    print("INVALID INPUT")
-        elif choice == '2':
-            if not locked:
-                # Enter manual mode
-                manual_mode()
-
-        elif choice == '3':
-            if not locked:
-                # Enter auto-timed mode
-                enterAuto()
-        elif locked:
-            print("FEEDER LOCKED")
-
-        else:
-            print("INVALID CHOICE")
-
+                print("INVALID CHOICE")
+    finally:
+        print("Exiting Program")
+        led_pin.stop
+        servo1.stop
+        GPIO.cleanup()
 if __name__ == "__main__":
     main()

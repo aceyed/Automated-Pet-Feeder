@@ -1,3 +1,5 @@
+# Ali Syed & Manan Pathak
+
 import RPi.GPIO as GPIO
 import time
 import smbus
@@ -85,12 +87,14 @@ def dim_led(pin, fade_time_seconds):
 
 
 def manual_mode():
-    lower_threshhold = 1.71
-    upper_threshold = 1.77
+    lower_threshhold = 1.75
+    upper_threshold = 1.80
     motor_running = False
 
     try:
         seconds = float(input("Enter the seconds you want the motor to stay open: "))
+        degree = int(input("Enter 2 for opening door all the way, or 4 for opening door half way: "))
+
         while True:
             # Read the value from the infrared sensor
             bus.write_byte(address, A2)
@@ -103,7 +107,7 @@ def manual_mode():
                 print("Infrared sensor triggered! Rotating the servo motor.")
 
                 # Rotate to 90 degrees position
-                servo1.ChangeDutyCycle(2)
+                servo1.ChangeDutyCycle(degree)
 
                 # Turn on the LED with blinking
                 dim_led(26, seconds)
@@ -134,12 +138,12 @@ def hours_to_seconds(hours):
     return hours * 3600
 
 # Automatic mode function to dispense based on user input
-def autoHelper(interval_seconds, seconds):
+def autoHelper(interval_seconds, seconds, degree):
 
     while True:
         print("Dispensing food automatically.")
         # Rotate to 90 degrees position
-        servo1.ChangeDutyCycle(2)
+        servo1.ChangeDutyCycle(degree)
         
         end_time = time.time() + seconds
         while time.time() < end_time:
@@ -161,8 +165,10 @@ def enterAuto():
         hours = float(input("Enter the time interval for dispensing in hours: "))
         interval_seconds = hours_to_seconds(hours)
         seconds = float(input("Enter the seconds you want the motor to stay open: "))
+        degree = int(input("Enter 2 for opening door all the way, or 4 for opening door half way: "))
+
         print(f"Automatic mode activated. Dispensing will occur every {hours} hours.")
-        autoHelper(interval_seconds,seconds)
+        autoHelper(interval_seconds,seconds, degree)
     except KeyboardInterrupt:
         # Clean up the GPIO on CTRL+C exit
         print("Exiting automatic mode.")
